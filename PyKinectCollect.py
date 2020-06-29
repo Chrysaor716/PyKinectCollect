@@ -24,17 +24,31 @@ SKELETON_COLORS = [pygame.color.THECOLORS["red"],
                   pygame.color.THECOLORS["violet"]]
 
 # Converts skeleton to sprites
-class Player(pygame.sprite.Sprite):
-    def __init__(self, surface, joints, jointPoints, color, joint0, joint1):
+class Bone(pygame.sprite.Sprite):
+    def __init__(self, surface, color, start, end):
         super().__init__() # calls the parent class (Sprite) constructor
 
+        #self.width = abs(end[0] - start[0])
+        #self.height = abs(end[1] - start[1])
+        #self.image = pygame.Surface([self.width, self.height])
         self._frame_surface = surface
 
-        ##### TODO create sprite here
+        #self.image.fill((255,255,255)) # white
+        #self.image.set_colorkey((255,255,255)) # makes background transparent after fill
+        self.color = color
+        self.start = start
+        self.end = end
+
+        #self.rect = self.image.get_rect()
 
     def update(self):
-        ##### TODO update sprite collision here
-        print("placeholder")
+        try:
+            #pygame.draw.line(self.image, self.color, self.start, self.end, 8)
+            ####### TODO: convert
+            pygame.draw.line(self._frame_surface, self.color, self.start, self.end, 8)
+        except: # need to catch it due to possible invalid positions (with inf)
+            pass
+
 
 # Represents a ball object; derived from the "Sprite" class in PyGame
 class Ball(pygame.sprite.Sprite):
@@ -66,7 +80,6 @@ class Ball(pygame.sprite.Sprite):
         # (should not matter too much for this project)
         if self.rect.y > self._frame_surface.get_height():
             self.rect.y = random.randrange(-50, -20)
-            self.rect.x = self.rect.x
         # TODO: add bounds for x position
 
 class PyKinectCollect(object):
@@ -98,6 +111,7 @@ class PyKinectCollect(object):
         # List of ball sprite, managed by a class called Group
         # This also holds all the objects that the player can collide with
         self.ballList = pygame.sprite.Group()
+        self.bones = pygame.sprite.Group()
 
 
     def draw_body_bone(self, joints, jointPoints, color, joint0, joint1):
@@ -105,7 +119,7 @@ class PyKinectCollect(object):
         joint1State = joints[joint1].TrackingState;
 
         # both joints are not tracked
-        if (joint0State == PyKinectV2.TrackingState_NotTracked) or (joint1State == PyKinectV2.TrackingState_NotTracked): 
+        if (joint0State == PyKinectV2.TrackingState_NotTracked) or (joint1State == PyKinectV2.TrackingState_NotTracked):
             return
 
         # both joints are not *really* tracked
@@ -116,10 +130,16 @@ class PyKinectCollect(object):
         start = (int(jointPoints[joint0].x), int(jointPoints[joint0].y))
         end = (int(jointPoints[joint1].x), int(jointPoints[joint1].y))
 
-        try:
-            pygame.draw.line(self._frame_surface, color, start, end, 8)
-        except: # need to catch it due to possible invalid positions (with inf)
-            pass
+        #try:
+        #    pygame.draw.line(self._frame_surface, color, start, end, 8)
+        #except: # need to catch it due to possible invalid positions (with inf)
+        #    pass
+        bone = Bone(self._frame_surface, color, start, end)
+        # Add to list for collision detection with any part of the body
+        #self.bones.add(bone)
+        #print("number of bones: ", len(self.bones))
+        #self.bones.update()
+        bone.update()
 
     def draw_body(self, joints, jointPoints, color):
         # Torso
