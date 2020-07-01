@@ -8,6 +8,7 @@ import pygame
 import sys
 
 import random
+import math
 
 if sys.hexversion >= 0x03000000:
     import _thread as thread
@@ -23,34 +24,6 @@ SKELETON_COLORS = [pygame.color.THECOLORS["red"],
                   pygame.color.THECOLORS["yellow"], 
                   pygame.color.THECOLORS["violet"]]
 
-# Converts skeleton to sprites
-'''
-class Bone(pygame.sprite.Sprite):
-    def __init__(self, color, start, end):
-        super().__init__() # calls the parent class (Sprite) constructor
-
-        self.width = end[0] - start[0]
-        self.height = end[1] - start[1]
-
-        self.image = pygame.Surface([abs(self.width), abs(self.height)])
-        self.image.fill((255,255,255)) # white
-        self.image.set_colorkey((255,255,255)) # makes background transparent after fill
-
-        self.color = color
-        self.start = start
-        self.end = end
-
-        self.rect = self.image.get_rect()
-
-    def update(self):
-        try:
-            #pygame.draw.line(self.image, self.color, self.start, self.end, 8)
-            # Top left to bottom right
-            #if width >= 0 and height >= 0:
-        except: # need to catch it due to possible invalid positions (with inf)
-            pass
-'''
-
 # Represents a ball object; derived from the "Sprite" class in PyGame
 class Ball(pygame.sprite.Sprite):
     def __init__(self, surface, color, radius):
@@ -64,6 +37,10 @@ class Ball(pygame.sprite.Sprite):
         ### Note: to use a bit-mapped graphic instead,
         ### self.image = pygame.image.load("example.png").convert()
 
+        self.gravity = 0.08
+        self.vx = random.randint(-1, 1)
+        self.vy = 1
+
         # Fetch the rectangle object.
         # This rectangle represents the dimesions of the sprite; it has attributes x and y,
         #   so to move this sprite, use `mySprite.rect.x` and `mySprite.rect.y`
@@ -74,14 +51,20 @@ class Ball(pygame.sprite.Sprite):
         pygame.draw.circle(self.image, color, (self.rect.center), radius)
 
     def update(self):
-        # Move ball object down 1 pixel
-        self.rect.y += 1
-        # If ball disappears at bottom of the screen, re-spawn it at the top
+        self.rect.x += self.vx
+        self.rect.y += self.vy
+        # Velocity threshold so it doesn't accelerate infinitely
+        if self.vy < 10:
+            self.vy += self.gravity
+
+        # If ball disappears at bottom of the screen, re-spawn it at the top.
+        # Maintain horixontal bounds
         # Note that the (x,y) coordinates refer to the top left of sprite
         # (should not matter too much for this project)
         if self.rect.y > self._frame_surface.get_height():
             self.rect.y = random.randrange(-150, -50)
-        # TODO: add bounds for x position
+        if self.rect.x > self._frame_surface.get_width() or self.rect.x < 0:
+            self.vx *= -1
 
 class PyKinectCollect(object):
     def __init__(self):
@@ -126,11 +109,12 @@ class PyKinectCollect(object):
         if (joint0State == PyKinectV2.TrackingState_Inferred) and (joint1State == PyKinectV2.TrackingState_Inferred):
             return
 
-        # ok, at least one is good 
-        start = (int(jointPoints[joint0].x), int(jointPoints[joint0].y))
-        end = (int(jointPoints[joint1].x), int(jointPoints[joint1].y))
-
+        start = (0, 0)
+        end = (0, 0)
         try:
+            # ok, at least one is good 
+            start = (int(jointPoints[joint0].x), int(jointPoints[joint0].y))
+            end = (int(jointPoints[joint1].x), int(jointPoints[joint1].y))
             pygame.draw.line(self._frame_surface, color, start, end, 8)
         except: # need to catch it due to possible invalid positions (with inf)
             pass
@@ -139,14 +123,15 @@ class PyKinectCollect(object):
         # I know this is a mess. Forgive me.
         for ball in self.ballList:
             if (start[0] <= end[0]):
-                if (ball.rect.x >= start[0]) and (ball.rect.x <= end[0]) and (ball.rect.y > abs( ((end[1]-start[1]) / 2) + min(start[1], end[1]))):
-                    ball.rect.y = abs( ((end[1]-start[1]) / 2) + min(start[1], end[1]))
+                if (ball.rect.x >= start[0]) and (ball.rect.x <= end[0]) and (ball.rect.y > min(start[1],end[1])) and (ball.rect.y < max(start[1], end[1])):
+                    #ball.rect.y = abs( ((end[1]-start[1]) / 2) + min(start[1], end[1]))
+                    ball.vy *= -(ball.vy * 0.05)
+                    #ball.vx *= -1
             else:
-                if (ball.rect.x >= end[0]) and (ball.rect.x <= start[0]) and (ball.rect.y > abs( ((end[1]-start[1]) / 2) + min (start[1], end[1]))):
-                    ball.rect.y = abs( ((end[1]-start[1]) / 2) + min (start[1], end[1]))
-
-        #bone = Bone(color, start, end)
-        #bone.update()
+                if (ball.rect.x >= end[0]) and (ball.rect.x <= start[0]) and (ball.rect.y > min(start[1],end[1])) and (ball.rect.y < max(start[1], end[1])):
+                    #ball.rect.y = abs( ((end[1]-start[1]) / 2) + min(start[1], end[1]))
+                    ball.vy *= -(ball.vy * 0.05)
+                    #ball.vx *= -1
 
     def draw_body(self, joints, jointPoints, color):
         # Torso
@@ -192,27 +177,22 @@ class PyKinectCollect(object):
         target_surface.unlock()
 
     def spawnObjects(self):
-        # TODO: Change this so that a set number of balls spawn at the beginning; the same
-        #       balls will simply respawn at the top again if it hits the ground
-        if random.randrange(0, 100) < 1: # 1% chance every frame
-            # Randomly spawn up to N objects at frame
-            for i in range(1, random.randint(1, 2)):
-                # Set random color and size for object
-                color = (random.randint(0,255), random.randint(0,255), random.randint(0,255))
-                radius = int(self._frame_surface.get_width()) // random.randint(50, 130)
+        # Spawn random number of balls in range
+        for i in range(1, random.randint(30, 40)):
+            # Set random color and size for object
+            color = (random.randint(0,255), random.randint(0,255), random.randint(0,255))
+            radius = int(self._frame_surface.get_width()) // random.randint(50, 130)
 
-                obj = Ball(self._frame_surface, color, radius)
-                # Set random starting horizontal location; spawn objects from top
-                obj.rect.x = random.randrange(0, int(self._frame_surface.get_width()))
-                obj.rect.y = random.randrange(-150, -50)
+            obj = Ball(self._frame_surface, color, radius)
+            # Set random starting horizontal location; spawn objects from top
+            obj.rect.x = random.randrange(0, int(self._frame_surface.get_width()))
+            obj.rect.y = random.randrange(-150, -50)
 
-                # Add to list of objects
-                self.ballList.add(obj)
-
-        self.ballList.draw(self._frame_surface)
-        self.ballList.update()
+            # Add to list of objects
+            self.ballList.add(obj)
 
     def run(self):
+        self.spawnObjects()
         # -------- Main Program Loop -----------
         while not self._done:
             # --- Main event loop
@@ -233,8 +213,6 @@ class PyKinectCollect(object):
                 self.draw_color_frame(frame, self._frame_surface)
                 frame = None
 
-            self.spawnObjects()
-
             # --- Cool! We have a body frame, so can get skeletons
             if self._kinect.has_new_body_frame(): 
                 self._bodies = self._kinect.get_last_body_frame()
@@ -248,6 +226,9 @@ class PyKinectCollect(object):
                         # convert joint coordinates to color space 
                         joint_points = self._kinect.body_joints_to_color_space(joints)
                         self.draw_body(joints, joint_points, SKELETON_COLORS[i])
+
+            self.ballList.draw(self._frame_surface)
+            self.ballList.update()
 
             # --- copy back buffer surface pixels to the screen, resize it if needed and keep aspect ratio
             # --- (screen size may be different from Kinect's color frame size)
