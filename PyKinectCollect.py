@@ -126,12 +126,14 @@ class PyKinectCollect(object):
                 if (ball.rect.x >= start[0]) and (ball.rect.x <= end[0]) and (ball.rect.y > min(start[1],end[1])) and (ball.rect.y < max(start[1], end[1])):
                     #ball.rect.y = abs( ((end[1]-start[1]) / 2) + min(start[1], end[1]))
                     ball.vy *= -(ball.vy * 0.05)
-                    #ball.vx *= -1
+                    # TODO: ball should roll on slope
+                    ball.vx *= -1
             else:
                 if (ball.rect.x >= end[0]) and (ball.rect.x <= start[0]) and (ball.rect.y > min(start[1],end[1])) and (ball.rect.y < max(start[1], end[1])):
                     #ball.rect.y = abs( ((end[1]-start[1]) / 2) + min(start[1], end[1]))
                     ball.vy *= -(ball.vy * 0.05)
-                    #ball.vx *= -1
+                    # TODO: ball should roll on slope
+                    ball.vx *= -1
 
     def draw_body(self, joints, jointPoints, color):
         # Torso
