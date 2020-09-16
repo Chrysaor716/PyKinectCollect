@@ -2,12 +2,15 @@
 
 Uses Kinectv2 (Kinect for Xbox One).
 
-Setup, dependencies, and starter code [here](https://github.com/Kinect/PyKinect2).  
+Setup, dependencies, and starter code [here](https://github.com/Kinect/PyKinect2). Note that this repo should probably have been forked.   
 [This article](https://pterneas.com/2014/05/06/understanding-kinect-coordinate-mapping/) is also a good resource on mapping the body coordinates from the camera with Microsoft's Kinect SDK, which the above repo uses.
+
+This project is a proof of concept. In full implementation, openCV should be considered.
+Demo video [here](https://youtu.be/a2oole96zqs).
 
 ### TODO
 - Stretch goal: Ball sprite collision with one another
-    - And just improving the physics overall
+    - Improving the physics overall
 - Map Kinect camera to projector for distance and scaling when the PyGame surface gets projected to use shadows for interaction
     - Consider possibly using the Kinect's depth data to accomplish this
 
